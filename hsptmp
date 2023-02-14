@@ -1,0 +1,94 @@
+#module
+
+#deffunc fatLine int a,int b,int c,int d,int e
+	repeat e
+	line c,d-e/2+cnt,a,b-e/2+cnt
+	line c-e/2+cnt,d,a-e/2+cnt,b
+	loop
+return
+
+#global
+
+screen 0,ginfo(20),ginfo(21),256,0,0
+
+participant = 6
+blocks = 7
+count = 30
+
+*main
+
+color 255,255,255:boxf
+
+color 175,175,175
+boxf 0,0,ginfo(20),ginfo(21)/2-1
+color 0,0,0
+line 0, ginfo(21)/2-1, ginfo(20),ginfo(21)/2-1
+
+pos 0,50
+mes "block = " + blocks
+pos 0,100
+mes "count = " + count
+
+
+notesel buf
+noteload "" + participant + "\\" +participant+ "_" + blocks + "_" + count + ".txt"
+
+title "さいず： "+strsize+ " バイト"
+
+sdim data, 10000
+
+lastrealX=0
+lastrealY=0
+lastdummyX=0
+lastdummyY=0
+
+repeat noteinfo(0)
+noteget data,cnt
+
+split data, ",", participant, A, W, I, P, S, time, dummyX, dummyY, realX, realY, error, block, task
+
+if(cnt==0){
+	lastrealX=realX
+lastrealY=realY
+lastdummyX=dummyX
+lastdummyY=dummyY
+
+color 0,255,0
+boxf ginfo(20)/2+int(A)/2-int(W)/2,ginfo(21)/2,ginfo(20)/2+int(A)/2+int(W)/2,ginfo(21)/2+22
+
+if(P=0){
+	color 0,0,0
+	boxf ginfo(20)/2+int(A)/2-int(W)/2-133-int(I),ginfo(21)/2,ginfo(20)/2+int(A)/2-int(W)/2-int(I),ginfo(21)/2+22
+} else {
+	color 0,0,0
+	boxf ginfo(20)/2+int(A)/2+int(W)/2+int(I),ginfo(21)/2,ginfo(20)/2+int(A)/2+int(W)/2+int(I)+133,ginfo(21)/2+22
+}
+
+}
+
+color 255,0,0
+fatLine int(lastrealX),int(lastrealY)+ginfo(21)/2,int(realX),int(realY)+ginfo(21)/2,3
+//mes int(lastrealX)
+//pset int(realX), int(realY)+ginfo(21)/2
+
+color 0,0,255
+fatLine int(lastdummyX),int(lastdummyY)+ginfo(21)/2,int(dummyX),int(dummyY)+ginfo(21)/2,3
+//pset int(dummyX), int(dummyY+ginfo(21)/2)
+
+
+lastrealX=realX
+lastrealY=realY
+lastdummyX=dummyX
+lastdummyY=dummyY
+
+loop
+
+count+=1
+if(count > 119){
+	count = 0
+	blocks += 1
+}
+
+onclick goto *main
+
+stop

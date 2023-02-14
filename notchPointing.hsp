@@ -1,0 +1,328 @@
+#uselib "winmm"
+#cfunc timeGetTime "timeGetTime"
+#define WM_MOUSEMOVE	$00000200
+#include "user32.as"
+#include "hspmath.as"
+
+buffer 1
+picload "マウス画像.png",1
+buffer 2
+pos 0,0
+gzoom 12,20,1,0,0,106,172,0
+
+screen 0,ginfo(20),ginfo(21),256,0,0
+
+;successMusicFile = "correct.wav"
+;failureMusicFile = "incorrect.wav"
+;mci "open \""+successMusicFile+"\" alias success"
+;mci "open \""+failureMusicFile+"\" alias failure"
+
+mmload "correct.wav",1
+mmload "incorrect.wav",2
+
+currentDir = dir_cur
+
+
+participant = 15
+displaySize = 23.8
+
+isFirstStart = 0
+isStart = 0
+startTime = 0
+
+temp = sqrt(16*16+9*9)
+
+dim display,2
+display = displaySize*2.54/temp*16, displaySize*2.54/temp*9
+
+temp2 = (ginfo(20) / display(0))
+temp3 = (ginfo(21) / display(1))
+
+notchWidth = 3.7 * temp2
+notchHeight = 0.6 * temp3
+dim Ws,3
+Ws = 0.6*temp2, 1.4*temp2, 2.3*temp2
+
+dim As,2
+As = 10*temp2, 20*temp2
+
+dim Is,5
+Is = 0.0,0.341*temp2,0.628*temp2,1.194*temp2,10000.0
+
+dim Ps,2
+Ps = 0,1
+
+dim Ss,2
+Ss = 0,1
+
+/*dim Ws,1
+Ws = 15
+dim As,1
+As = 300
+dim Is,1
+Is = 0
+dim Ps,2
+Ps = 0,1*/
+
+countBlock = 10
+
+dim tasks,length(Ws)*length(As)*length(Is)*length(Ps)*length(Ss)
+gosub *taskShuffle
+
+cursorSize = 10
+;screenWidth = ginfo(12)
+;screenHeight = ginfo(13)
+
+mouse ginfo(20)/2, ginfo(21)/2
+
+dummyMouseX=mousex
+dummyMouseY=mousey
+realMouseX=mousex
+realMouseY=mousey
+
+dialog "cur", 16, "カーソルファイル"
+if stat = 0: stop
+
+LoadCursorFromFile refstr
+SetClassLong hwnd, -12, stat
+
+taskCounter = 0
+blockCounter = 0
+
+A = 0
+W = 0
+I = 0
+P = 0
+H = notchHeight
+S = 0
+
+error = 0
+
+dim target,2
+target = 0,0
+dim startTarget,2
+startTarget = 0,0
+
+lastTime=timeGetTime()
+
+rest = 0
+
+*main
+	if(countBlock <= blockCounter){
+		notesel data
+		notesave ""+participant+".txt"
+		end
+	}
+	redraw 0
+	color 175,175,175:boxf
+	
+	if(isStart == -1){
+		gosub *taskDataSave
+	} else :if(isFirstStart == -1){
+		dummyMouseX = startTarget(0)
+		dummyMouseY = startTarget(1)
+	}
+
+	onclick gosub *click
+
+	gosub *term
+
+	
+	gosub *drawTarget
+	gosub *drawStart
+	gosub *drawCursor
+	gosub *drawNotch
+
+	color 0,0,0
+	pos 0,0
+	mes "Block = "+blockCounter
+	pos 0,30
+	mes "Count = "+taskCounter
+	/*repeat length(tasks)
+		pos 0,15*cnt+60
+		mes tasks(cnt)
+	loop*/
+	fps = 1000.0/(timeGetTime() - lastTime+1)
+	pos 0,60
+	mes "fps = "+fps
+
+	;pos 0,90
+	;mes "A = "+As(0)+","+As(1)
+	;pos 0,120
+	;mes "W = "+Ws(0)+","+Ws(1)+","+Ws(2)
+	pos 0,150
+	mes "H = "+notchWidth
+	;pos 0,180
+	;mes "I = "+Is(0)+","+Is(1)+","+Is(2)+","+Is(3)+","+Is(4)
+	
+	redraw 1
+	lastTime=timeGetTime()
+	
+	await 1
+
+	
+	
+	goto *main
+
+*click
+	if(rest==-1):return
+	if(sqrt(pow(dummyMouseX-startTarget(0),2)+pow(dummyMouseY-startTarget(1),2))<125 && isFirstStart == 0 && isStart == 0){
+		isFirstStart = -1
+	}else :if(isFirstStart == -1 && isStart == 0){
+		dummyMouseX = startTarget(0)
+		dummyMouseY = startTarget(1)
+		gosub *start
+		notesel taskData
+		gosub *taskDataSave
+	} else :if(isFirstStart == -1 && isStart == -1){
+		if(target(0)<=dummyMouseX && dummyMouseX<=target(0)+W && target(1)<=dummyMouseY && dummyMouseY<=H){
+			error = 0
+		} else {
+			error = 1
+		}
+		gosub *save
+	}
+	return
+
+*taskShuffle
+	randomize
+	repeat length(tasks)
+		r=rnd(cnt+1)
+		tasks(cnt)=tasks(r)
+		tasks(r)=cnt
+	loop
+	return
+
+*term
+	e = tasks(taskCounter)
+	A = As(e \ length(As))
+	W = Ws((e/length(As)) \ length(Ws))
+	I = Is((e/length(As)/length(Ws)) \ length(Is))
+	P = Ps((e/length(As)/length(Ws)/length(Is)) \ length(Ps))
+	S = Ss( (e/length(As)/length(Ws)/length(Is)/length(Ps)) \ length(Ss) )
+
+	target(0) = ginfo(20)/2 + A/2 - W/2
+	target(1) = 0
+	startTarget(0) = ginfo(20)/2 - A/2
+	if(S == 0){
+		startTarget(1) = 0
+	} else {
+		startTarget(1) = int(H)
+	}
+	
+	return
+
+*drawStart
+	if(isStart == 0){
+		if(startTarget(0)<=dummyMouseX && dummyMouseX<=startTarget(0)+W && startTarget(1)<=dummyMouseY && dummyMouseY<=startTarget(1)+H){
+			color 234,145,152
+		} else {
+			color 234,145,152
+		}
+		circle startTarget(0)-125,startTarget(1)-125,startTarget(0)+125,startTarget(1)+125
+		color 255,0,0
+		line startTarget(0)-(125.0/sqrt(2)),startTarget(1)-125.0/sqrt(2),startTarget(0)+125.0/sqrt(2),startTarget(1)+(125.0/sqrt(2))
+		line startTarget(0)-(125.0/sqrt(2)),startTarget(1)+(125.0/sqrt(2)),startTarget(0)+125.0/sqrt(2),startTarget(1)-125.0/sqrt(2)
+	}
+	return
+
+*start
+	isStart = -1
+	startTime = timeGetTime()
+	realMouseX = dummyMouseX
+	realMouseY = dummyMouseY
+	return
+
+*save
+	isStart = 0
+	isFirstStart = 0
+	tempTime = timeGetTime()-startTime
+	gosub *taskDataSave
+	chdir currentDir
+	notesave ""+participant+"\\"+participant+"_"+blockCounter+"_"+taskCounter+".txt"
+	;path="hoge.txt"
+	;notesave path
+
+	taskData = ""
+	
+	notesel data
+	noteadd ""+participant+","+A+","+W+","+I+","+P+","+S+","+tempTime+","+error+","+blockCounter+","+taskCounter
+	if(error == 0){
+		mmplay 1
+	} else: if(error == 1){
+		mmplay 2
+	}
+
+	taskCounter++
+	if (length(tasks) <= taskCounter){
+		blockCounter++
+		taskCounter=0
+		gosub *taskShuffle
+	}
+	if(blockCounter == 5 && rest == 0){
+		gosub *restrest
+	}
+	
+	return
+
+*restrest
+	rest = -1
+	color 200,200,200: boxf
+	pos ginfo(20)/2,ginfo(21)/2
+	color 0
+	mes "rest"
+	repeat
+		getkey p,13
+		if(p>0){
+			rest=1
+			break
+		}
+		await 10
+	loop
+	return
+
+*drawTarget
+	if(target(0)<=dummyMouseX && dummyMouseX<=target(0)+W && target(1)<=dummyMouseY && dummyMouseY<=H && isStart == -1){
+		color 0,255,0
+	} else {
+		color 0,255,0
+	}
+	boxf target(0),target(1),target(0)+W,target(1)+H
+	return
+
+*drawNotch
+	color 0,0,0
+	if(P=0){
+		boxf target(0) - notchWidth - I, 0, target(0) - I, notchHeight
+	} else {
+		boxf target(0) + W + I, 0, target(0) + W + I + notchWidth, notchHeight
+	}
+	return
+
+*drawCursor
+	realMouseX = realMouseX+(mousex-ginfo(20)/2)
+	realMouseY = realMouseY+(mousey-ginfo(21)/2)
+	dummyMouseX = dummyMouseX+(mousex-ginfo(20)/2)
+	if(dummyMouseX < 0){
+		dummyMouseX = 0
+	} else :if(dummyMouseX >= ginfo(20)){
+		dummyMouseX = ginfo(20)-1
+	}
+	dummyMouseY = dummyMouseY+(mousey-ginfo(21)/2)
+	if(dummyMouseY < 0){
+		dummyMouseY = 0
+	} else :if(dummyMouseY >= ginfo(21)){
+		dummyMouseY = ginfo(21)-1
+	}
+	
+	gmode 4,12,20,256
+	color 255,0,0
+	pos dummyMouseX,dummyMouseY:gcopy 2,0,0,12,20
+
+	mouse ginfo(20)/2,ginfo(21)/2
+	mouse -1
+	return
+
+*taskDataSave
+	noteadd ""+participant+","+A+","+W+","+I+","+P+","+S+","+timeGetTime()+","+dummyMouseX+","+dummyMouseY+","+realMouseX+","+realMouseY+","+error+","+blockCounter+","+taskCounter
+	return
